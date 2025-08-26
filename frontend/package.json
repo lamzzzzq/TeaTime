@@ -17,7 +17,7 @@
   },
   "scripts": {
     "start": "react-scripts start",
-    "build": "react-scripts build && cp -r public/unity-build build/",
+    "build": "react-scripts build && xcopy public\\unity-build build\\unity-build /E /I /Y",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
     "serve": "serve -s build -l 3000"
