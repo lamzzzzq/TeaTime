@@ -31,11 +31,9 @@ jobs:
         npm test -- --watchAll=false --passWithNoTests
     
     - name: Build frontend
-      env:
-        CI: false
       run: |
         cd frontend
-        npm run build
+        CI=false npm run build
     
     - name: Setup Node.js for backend
       uses: actions/setup-node@v3
