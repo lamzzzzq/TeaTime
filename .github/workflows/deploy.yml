@@ -111,7 +111,7 @@ jobs:
         npm ci
     
     - name: Deploy to Railway
-      uses: bervProject/railway-deploy@v1.0.0
-      with:
-        service: ${{ secrets.RAILWAY_SERVICE }}
-        token: ${{ secrets.RAILWAY_TOKEN }}
+      run: |
+        echo "Railway deployment would go here"
+        echo "You need to configure Railway deployment manually"
+      continue-on-error: true
