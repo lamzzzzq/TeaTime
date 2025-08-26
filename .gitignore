@@ -7,16 +7,16 @@ yarn-error.log*
 lerna-debug.log*
 
 # Production builds
-build/
-dist/
-*/build/
-*/dist/
+# build/           ← 注释掉，允许根目录build
+# dist/
+# */build/         ← 注释掉，允许子目录build
+# */dist/
 
-# Unity WebGL build files (large files)
-public/unity-build/Build/
-public/unity-build/*.unityweb
-public/unity-build/*.data
-public/unity-build/*.wasm
+# Unity WebGL build files (large files) - 允许Unity文件被跟踪
+# public/unity-build/Build/     ← 注释掉，允许Unity Build文件夹
+# public/unity-build/*.unityweb ← 注释掉，允许Unity文件
+# public/unity-build/*.data     ← 注释掉，允许Unity数据文件
+# public/unity-build/*.wasm     ← 注释掉，允许Unity WebAssembly文件
 
 # Environment variables
 .env
