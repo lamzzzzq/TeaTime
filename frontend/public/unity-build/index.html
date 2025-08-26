@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Unity WebGL Player | ConvaiWebGL</title>
+    <link rel="shortcut icon" href="TemplateData/favicon.ico">
+    <link rel="stylesheet" href="TemplateData/style.css">
+    <link rel="manifest" href="manifest.webmanifest">
+    <script src="TemplateData/ConvaiWebGLSDK.js"></script>
+  </head>
+  <body>
+    <div id="unity-container">
+      <canvas id="unity-canvas" width=960 height=600 tabindex="0"></canvas>
+      <div id="unity-loading-bar">
+        <div id="unity-logo"></div>
+        <div id="unity-progress-bar-empty">
+          <div id="unity-progress-bar-full"></div>
+        </div>
+      </div>
+      <div id="unity-warning"> </div>
+    </div>
+    <script>
+      // 若直接打开本页（无父窗口React），兜底定义receiveUnityOutput，避免报错
+      if (!window.receiveUnityOutput) {
+        window.receiveUnityOutput = function(json){
+          try { console.log('📨 [Standalone] Unity输出:', JSON.parse(json)); } catch(_) { console.log('📨 [Standalone] Unity输出(raw):', json); }
+          // 转发到父窗口
+          try { if (window.parent) { window.parent.postMessage({ type: 'UNITY_OUTPUT', payload: json }, '*'); } } catch(_) {}
+        }
+      }
+
+      // 统一的消息入口：父窗口 -> 子窗口
+      var __unityInstanceRef = null;
+      window.addEventListener('message', function(event){
+        var data = event.data || {};
+        if (data.type === 'UNITY_PING') {
+          try { window.parent && window.parent.postMessage({ type: 'UNITY_READY' }, '*'); } catch(_) {}
+        }
+        if (data.type === 'UNITY_INPUT') {
+          try {
+            if (__unityInstanceRef) {
+              __unityInstanceRef.SendMessage('ConvaiGRPCWebAPI', 'InjectWebInput', data.payload);
+            }
+          } catch (e) { console.warn('UNITY_INPUT 处理失败:', e); }
+        }
+      });
+      window.addEventListener("load", function () {
+        if ("serviceWorker" in navigator) {
+          // 开发环境禁用SW，避免缓存干扰
+          navigator.serviceWorker.getRegistrations && navigator.serviceWorker.getRegistrations().then(function(regs){
+            regs.forEach(function(reg){ try { reg.unregister(); } catch(_){} });
+          });
+        }
+      });
+
+      var container = document.querySelector("#unity-container");
+      var canvas = document.querySelector("#unity-canvas");
+      var loadingBar = document.querySelector("#unity-loading-bar");
+      var progressBarFull = document.querySelector("#unity-progress-bar-full");
+      var warningBanner = document.querySelector("#unity-warning");
+
+      // Shows a temporary message banner/ribbon for a few seconds, or
+      // a permanent error message on top of the canvas if type=='error'.
+      // If type=='warning', a yellow highlight color is used.
+      // Modify or remove this function to customize the visually presented
+      // way that non-critical warnings and error messages are presented to the
+      // user.
+      function unityShowBanner(msg, type) {
+        function updateBannerVisibility() {
+          warningBanner.style.display = warningBanner.children.length ? 'block' : 'none';
+        }
+        var div = document.createElement('div');
+        div.innerHTML = msg;
+        warningBanner.appendChild(div);
+        if (type == 'error') div.style = 'background: red; padding: 10px;';
+        else {
+          if (type == 'warning') div.style = 'background: yellow; padding: 10px;';
+          setTimeout(function() {
+            warningBanner.removeChild(div);
+            updateBannerVisibility();
+          }, 5000);
+        }
+        updateBannerVisibility();
+      }
+
+      var buildUrl = "Build";
+      var __cacheBust = Date.now();
+      var loaderUrl = buildUrl + "/20250825.loader.js?v=" + __cacheBust;
+      var config = {
+        dataUrl: buildUrl + "/20250825.data.unityweb?v=" + __cacheBust,
+        frameworkUrl: buildUrl + "/20250825.framework.js.unityweb?v=" + __cacheBust,
+        codeUrl: buildUrl + "/20250825.wasm.unityweb?v=" + __cacheBust,
+        streamingAssetsUrl: "StreamingAssets",
+        companyName: "DefaultCompany",
+        productName: "ConvaiWebGL",
+        productVersion: "0.1",
+        showBanner: unityShowBanner,
+      };
+
+      // By default Unity keeps WebGL canvas render target size matched with
+      // the DOM size of the canvas element (scaled by window.devicePixelRatio)
+      // Set this to false if you want to decouple this synchronization from
+      // happening inside the engine, and you would instead like to size up
+      // the canvas DOM size and WebGL render target sizes yourself.
+      // config.matchWebGLToCanvasSize = false;
+
+      if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+        // Mobile device style: fill the whole browser client area with the game canvas:
+        var meta = document.createElement('meta');
+        meta.name = 'viewport';
+        meta.content = 'width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes';
+        document.getElementsByTagName('head')[0].appendChild(meta);
+      }
+
+      loadingBar.style.display = "block";
+
+      // --- Fallback: 如果Unity长时间未就绪，则创建一个Mock实例，便于React通信联调 ---
+      var __unityMockTimer = null;
+      function setupUnityMockFallback(timeoutMs) {
+        if (__unityMockTimer) return;
+        __unityMockTimer = setTimeout(function() {
+          try {
+            if (!window.unityInstance) {
+              var mockUnityInstance = {
+                SendMessage: function(target, method, value) {
+                  try {
+                    var data = {};
+                    try { data = typeof value === 'string' ? JSON.parse(value) : (value || {}); } catch(_) {}
+                    // 将Web输入回显为Unity输出，走与真实Unity一致的通路
+                    var output = {
+                      type: data.type === 'text' ? 'user_text' : (data.type || 'unknown'),
+                      content: data.content || '',
+                      npcName: '',
+                      timestamp: new Date().toLocaleTimeString(),
+                      additionalData: { source: data.source || 'web', mock: true }
+                    };
+                    var payload = JSON.stringify(output);
+                    if (window.parent && typeof window.parent.receiveUnityOutput === 'function') {
+                      window.parent.receiveUnityOutput(payload);
+                    } else if (typeof window.receiveUnityOutput === 'function') {
+                      window.receiveUnityOutput(payload);
+                    }
+                    console.log('📨 [Mock Unity] SendMessage 捕获:', target, method, value);
+                  } catch (e) {
+                    console.warn('⚠️ [Mock Unity] 处理消息失败:', e);
+                  }
+                }
+              };
+              window.unityInstance = mockUnityInstance;
+              try {
+                if (window.parent && window.parent !== window) {
+                  window.parent.unityInstance = mockUnityInstance;
+                }
+              } catch (_) {}
+              try {
+                if (window.parent) {
+                  window.parent.postMessage({ type: 'UNITY_READY', unityInstance: 'mock' }, '*');
+                }
+              } catch (_) {}
+              console.log('✅ 使用Mock Unity实例（仅用于通信联调）');
+            }
+          } catch (e) {
+            console.warn('⚠️ Mock Unity回退设置失败:', e);
+          }
+        }, timeoutMs || 7000); // 7秒未就绪则启用Mock
+      }
+      setupUnityMockFallback(7000);
+
+      var script = document.createElement("script");
+      script.src = loaderUrl;
+      script.onload = () => {
+        createUnityInstance(canvas, config, (progress) => {
+          progressBarFull.style.width = 100 * progress + "%";
+        }).then((unityInstance) => {
+          loadingBar.style.display = "none";
+          if (__unityMockTimer) { clearTimeout(__unityMockTimer); __unityMockTimer = null; }
+          
+          // 设置全局Unity实例供React访问
+          window.unityInstance = unityInstance;
+          __unityInstanceRef = unityInstance;
+          
+          // 如果在iframe中，也设置到父窗口
+          try {
+            if (window.parent && window.parent !== window) {
+              window.parent.unityInstance = unityInstance;
+              console.log('✅ Unity实例已设置到父窗口');
+              
+              // 发送消息到父窗口通知Unity已准备好
+              window.parent.postMessage({
+                type: 'UNITY_READY',
+                unityInstance: 'available'
+              }, '*');
+              
+            }
+          } catch (e) {
+            console.log('⚠️ 无法设置到父窗口（可能的跨域限制）:', e);
+            
+            // 如果直接设置失败，尝试通过postMessage通信
+            try {
+              window.parent.postMessage({
+                type: 'UNITY_READY',
+                unityInstance: 'available'
+              }, '*');
+              console.log('✅ 通过postMessage通知父窗口Unity已准备好');
+            } catch (msgError) {
+              console.error('❌ postMessage也失败了:', msgError);
+            }
+          }
+          
+          // 确保Unity Canvas获得焦点以接收键盘输入
+          canvas.focus();
+          
+          // 添加点击事件监听器，确保用户交互后Canvas能获得焦点
+          canvas.addEventListener('click', function() {
+            canvas.focus();
+          });
+          
+          // 防止页面滚动干扰WASD键
+          canvas.addEventListener('keydown', function(e) {
+            // 防止方向键和空格键滚动页面
+            if([32, 37, 38, 39, 40].indexOf(e.keyCode) > -1) {
+              e.preventDefault();
+            }
+          });
+          
+          console.log('✅ Unity WebGL loaded successfully and ready for React communication');
+          
+        }).catch((message) => {
+          console.error('❌ Unity WebGL failed to load:', message);
+          alert('Unity WebGL failed to load: ' + message);
+        });
+      };
+      document.body.appendChild(script);
+    </script>
+  </body>
+</html>
