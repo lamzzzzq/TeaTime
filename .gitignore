@@ -17,10 +17,6 @@ public/unity-build/Build/
 public/unity-build/*.unityweb
 public/unity-build/*.data
 public/unity-build/*.wasm
-frontend/public/unity-build/Build/
-frontend/public/unity-build/*.unityweb
-frontend/public/unity-build/*.data
-frontend/public/unity-build/*.wasm
 
 # Environment variables
 .env
