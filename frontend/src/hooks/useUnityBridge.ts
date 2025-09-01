@@ -317,7 +317,7 @@ export const useUnityBridge = () => {
     let timeoutId: NodeJS.Timeout;
     
     // 监听Unity准备就绪消息
-    const handleUnityReady = (event: MessageEvent) => {
+    const handleUnityMessage = (event: MessageEvent) => {
       if (event.data && event.data.type === 'UNITY_READY') {
         console.log('✅ Unity桥接收到准备就绪消息');
         
@@ -347,16 +347,20 @@ export const useUnityBridge = () => {
         emit('unity-connected', window.unityInstance);
         
         // 移除事件监听器
-        window.removeEventListener('message', handleUnityReady);
+        window.removeEventListener('message', handleUnityMessage);
+      } else if (event.data && event.data.type === 'UNITY_OUTPUT') {
+        // 处理来自Unity iframe的输出消息
+        console.log('📨 收到Unity输出 (iframe):', event.data.data);
+        handleUnityOutput(event.data.data);
       }
     };
     
     // 添加消息监听器
-    window.addEventListener('message', handleUnityReady);
+    window.addEventListener('message', handleUnityMessage);
     
     // 设置超时备用方案
     timeoutId = setTimeout(() => {
-      window.removeEventListener('message', handleUnityReady);
+      window.removeEventListener('message', handleUnityMessage);
       
       // 如果30秒后仍未收到消息，尝试传统方式
       if (!status.isUnityLoaded) {

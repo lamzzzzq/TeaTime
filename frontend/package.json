@@ -18,7 +18,7 @@
   },
   "scripts": {
     "start": "craco start",
-    "build": "craco build && copyfiles -u 1 \"public/unity-build/**/*\" build/",
+    "build": "craco build && copyfiles -u 1 \"public/unity-build/**/*\" build/ && echo 'Unity files copied successfully'",
     "test": "craco test",
     "eject": "react-scripts eject",
     "serve": "serve -s build -l 3000"
