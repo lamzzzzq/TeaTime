@@ -51,6 +51,6 @@ export interface ChatMessage {
   content: string;
   timestamp: Date;
   npcName?: string;
-  status?: 'sending' | 'sent' | 'error';
+  status: 'sent' | 'pending' | 'error'; // 添加这行
 }
 

@@ -1,8 +1,80 @@
 body { padding: 0; margin: 0 }
-#unity-container { position: fixed; width: 100%; height: 100%; }
-#unity-canvas { width: 100%; height: 100%; background: #231F20 }
+
+/* 基础Unity容器样式 */
+#unity-container { 
+    position: relative;  /* 改为relative，不是fixed */
+    width: 100%;         /* 改为100%，不是100% */
+    height: 100%;        /* 改为100%，不是100vh */
+}
+
+#unity-canvas { 
+    width: 100%; 
+    height: 100%; 
+    background: #231F20 
+}
+
+/* 加载相关样式保持不变 */
 #unity-loading-bar { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: none }
 #unity-logo { width: 154px; height: 130px; background: url('unity-logo-dark.png') no-repeat center }
 #unity-progress-bar-empty { margin-left: auto; margin-right: auto; width: 141px; height: 18px; margin-top: 10px; background: url('progress-bar-empty-dark.png') no-repeat center }
-#unity-progress-bar-full { width: 0%; height: 18px; margin-top: 10px; background: url('progress-bar-full-dark.png') no-repeat center }
+#unity-progress-bar-full { width: 0%; height: 18px; margin-top: 10px; background: url('progress-bar-empty-dark.png') no-repeat center }
 #unity-warning { position: absolute; left: 50%; top: 5%; transform: translate(-50%); background: white; padding: 10px; display: none }
+
+/* 聊天容器样式 */
+#chat-container { 
+    width: 400px; 
+    height: 100vh; 
+    background: #ffffff; 
+    border-left: 2px solid #ddd; 
+    display: flex; 
+    flex-direction: column; 
+    box-shadow: -2px 0 10px rgba(0,0,0,0.08); 
+}
+
+/* 其他聊天样式保持不变 */
+#chat-header { padding: 15px 20px; background: #6366f1; color: #fff; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #5855eb; }
+#chat-header h3 { margin: 0; font-size: 16px; font-weight: 600; }
+#connection-status { font-size: 12px; padding: 4px 8px; border-radius: 12px; background: rgba(255,255,255,0.2); }
+#connection-status.connected { background: rgba(34,197,94,0.18); color: #064e3b; }
+#connection-status.disconnected { background: rgba(239,68,68,0.18); color: #7f1d1d; }
+#chat-messages { flex: 1; padding: 16px; overflow-y: auto; background: #fafafa; }
+.message { margin-bottom: 12px; padding: 10px 12px; border-radius: 10px; max-width: 80%; box-shadow: 0 1px 2px rgba(0,0,0,0.06); font-size: 14px; }
+.message.user { background: #6366f1; color: #fff; margin-left: auto; border-bottom-right-radius: 4px; }
+.message.npc { background: #fff; color: #111827; margin-right: auto; border: 1px solid #e5e7eb; border-bottom-left-radius: 4px; }
+.message-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; font-size: 12px; opacity: 0.75; }
+.sender-name { font-weight: 600; }
+.timestamp { font-size: 11px; }
+.message-content { line-height: 1.4; word-wrap: break-word; }
+#chat-input-container { padding: 14px; background: #fff; border-top: 1px solid #e5e7eb; display: flex; gap: 10px; align-items: center; }
+#chat-input { flex: 1; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; outline: none; }
+#chat-input:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.12); }
+#send-button, #voice-button { padding: 10px 14px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; }
+#send-button { background: #6366f1; color: #fff; }
+#send-button:hover { background: #5855eb; }
+#voice-button { background: #f3f4f6; color: #374151; }
+#voice-button.recording { background: #ef4444; color: #fff; }
+#npc-status { padding: 8px 14px; font-size: 12px; text-align: center; background: #f9fafb; border-top: 1px solid #e5e7eb; color: #6b7280; }
+#npc-status.talking { background: #fef3c7; color: #d97706; }
+#npc-status.listening { background: #ecfdf5; color: #059669; }
+
+/* 应用容器样式 - 让React控制布局 */
+.app-container { 
+    display: flex; 
+    width: 100%;      /* 改为100%，不是100vw */
+    height: 100vh; 
+}
+
+/* Unity容器在React应用中的样式 */
+.app-container #unity-container { 
+    position: relative; 
+    width: 100%;      /* 改为100%，让React的flexbox控制宽度 */
+    height: 100%;     /* 改为100%，不是100vh */
+}
+
+#chat-container { z-index: 2; }
+
+/* Unity Canvas在React应用中的样式 */
+.app-container #unity-canvas { 
+    width: 100%; 
+    height: 100%; 
+}

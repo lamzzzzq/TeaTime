@@ -88,9 +88,8 @@
 }
 
 .unity-container {
-    width: 100%;
-    height: 100%;
-    position: relative;
+    width: 100% !important;  /* 强制覆盖Unity的CSS */
+    height: 100% !important;
 }
 
 .unity-loading {

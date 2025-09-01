@@ -11,6 +11,10 @@ declare global {
   }
 }
 
+// 全局单例标记 - 确保整个应用只有一个消息监听器
+let globalMessageListenerActive = false;
+let globalMessageHandler: ((event: MessageEvent) => void) | null = null;
+
 export const useUnityBridge = () => {
   const [status, setStatus] = useState<UnityBridgeStatus>({
     isUnityLoaded: false,
@@ -22,6 +26,8 @@ export const useUnityBridge = () => {
 
   const messageQueue = useRef<UnityMessage[]>([]);
   const eventListeners = useRef<Map<string, Function[]>>(new Map());
+  const processedMessages = useRef<Set<string>>(new Set());
+  const isInitialized = useRef<boolean>(false);
 
   // 事件监听器管理
   const on = useCallback((event: string, callback: Function) => {
@@ -58,6 +64,26 @@ export const useUnityBridge = () => {
   const handleUnityOutput = useCallback((data: UnityOutputData) => {
     const { type, content, npcName, timestamp, additionalData } = data;
 
+    // 生成消息唯一标识符（基于类型和内容，去掉末尾空格）
+    const cleanContent = content?.trim() || '';
+    const messageId = `${type}_${cleanContent}`;
+    
+    // 检查是否已经处理过这条消息
+    if (processedMessages.current.has(messageId)) {
+      console.log('🔄 React跳过重复消息:', messageId);
+      return;
+    }
+    
+    // 标记消息已处理
+    processedMessages.current.add(messageId);
+    
+    // 延迟清理消息ID（防止短时间内的重复消息）
+    setTimeout(() => {
+      processedMessages.current.delete(messageId);
+    }, 3000); // 3秒后清理，缩短清理时间
+
+    console.log('📨 React处理Unity消息:', type, content);
+
     // 触发对应类型的事件
     emit('unity-output', data);
     emit(`unity-${type}`, data);
@@ -66,31 +92,74 @@ export const useUnityBridge = () => {
     switch (type) {
       case 'user_text':
         console.log('👤 用户输入（包括语音转录）:', content);
+        emit('unity-user_text', data);
         break;
       case 'npc_text':
         console.log('🤖 NPC回复:', npcName, content);
+        emit('unity-npc_text', data);
         break;
       case 'talking_status':
         const isTalking = additionalData?.isTalking || false;
         console.log(`🗣️ NPC ${isTalking ? '开始' : '停止'}说话:`, npcName);
+        emit('unity-talking_status', data);
         break;
       default:
         console.log('📝 未知Unity输出类型:', type, data);
     }
   }, [emit]);
 
-  // 设置全局接收函数（按照API指南格式）
+  // 设置全局接收函数（按照API指南格式） - 仅在非iframe环境下使用
   const setupGlobalReceiver = useCallback(() => {
-    window.receiveUnityOutput = (jsonData: string) => {
-      try {
-        const data: UnityOutputData = JSON.parse(jsonData);
-        console.log('📨 收到Unity输出:', data);
-        handleUnityOutput(data);
-      } catch (error) {
-        console.error('❌ 解析Unity输出失败:', error, '原始数据:', jsonData);
+    // 检查是否在iframe中运行
+    const isInIframe = window !== window.parent;
+    
+    if (!isInIframe) {
+      window.receiveUnityOutput = (jsonData: string) => {
+        try {
+          const data: UnityOutputData = JSON.parse(jsonData);
+          console.log('📨 收到Unity输出 (全局):', data);
+          handleUnityOutput(data);
+        } catch (error) {
+          console.error('❌ 解析Unity输出失败:', error, '原始数据:', jsonData);
+        }
+      };
+      console.log('🔗 全局接收函数已设置 (非iframe环境)');
+    } else {
+      console.log('🔗 跳过全局接收函数设置 (iframe环境)');
+    }
+  }, [handleUnityOutput]);
+
+  // 监听iframe消息 - 全局单例模式
+  const setupMessageListener = useCallback(() => {
+    // 全局检查：如果已经有监听器在工作，跳过
+    if (globalMessageListenerActive) {
+      console.log('🔄 全局消息监听器已存在，跳过重复设置');
+      return () => {}; // 返回空清理函数
+    }
+
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data.type === 'UNITY_OUTPUT') {
+        console.log('📨 收到Unity iframe消息:', event.data.payload);
+        handleUnityOutput(event.data.payload);
       }
     };
-    console.log('🔗 全局接收函数已设置');
+
+    // 保存全局引用并标记已设置
+    globalMessageHandler = handleMessage;
+    globalMessageListenerActive = true;
+    
+    window.addEventListener('message', handleMessage);
+    console.log(' iframe消息监听器已设置（全局单例）');
+
+    return () => {
+      // 关键：不在清理函数中重置全局标记！
+      // 只移除事件监听器，保持全局标记为true
+      if (globalMessageHandler) {
+        window.removeEventListener('message', globalMessageHandler);
+        globalMessageHandler = null;
+        // 不要重置 globalMessageListenerActive = false;
+      }
+    };
   }, [handleUnityOutput]);
 
   // 等待Unity实例加载完成
@@ -328,17 +397,32 @@ export const useUnityBridge = () => {
 
   // 组件挂载时初始化
   useEffect(() => {
+    // 防止重复初始化
+    if (isInitialized.current) {
+      console.log('🔄 Unity桥接已初始化，跳过重复初始化');
+      return;
+    }
+    
+    isInitialized.current = true;
+    console.log('🔧 开始初始化Unity桥接...');
+    
     initUnityBridge();
+    
+    // 设置iframe消息监听器
+    const cleanup = setupMessageListener();
 
     // 清理函数
     return () => {
+      console.log('🧹 清理Unity桥接...');
       if (window.receiveUnityOutput) {
         delete window.receiveUnityOutput;
       }
       eventListeners.current.clear();
       messageQueue.current = [];
+      cleanup(); // 清理消息监听器
+      isInitialized.current = false;
     };
-  }, [initUnityBridge]);
+  }, [initUnityBridge, setupMessageListener]);
 
   // 当Unity加载状态改变时处理队列
   useEffect(() => {
@@ -372,6 +456,7 @@ export const useUnityBridge = () => {
     testConnection,
     on,
     off,
-    emit
+    emit,
+    handleUnityOutput,  // 添加这行
   };
 };

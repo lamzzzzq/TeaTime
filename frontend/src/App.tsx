@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import Header from './components/Header.tsx';
-import UnityContainer from './components/UnityContainer.tsx';
+import { UnityContainer } from './components/UnityContainer.tsx'; // 改为命名导入
 import ChatContainer from './components/ChatUI/ChatContainer.tsx';
 import { useUnityBridge } from './hooks/useUnityBridge.ts';
 import './styles/App.css';
 
 const App: React.FC = () => {
-  const { status } = useUnityBridge();
+  const unityBridge = useUnityBridge();
   const [sessionDuration, setSessionDuration] = useState(0);
 
   // 会话时长计时器
@@ -33,17 +33,17 @@ const App: React.FC = () => {
   return (
     <div className="app-container">
       {/* 顶部导航栏 */}
-      <Header unityStatus={status} />
+      <Header unityStatus={unityBridge.status} />
 
       {/* 主内容区域 */}
       <main className="main-content">
         {/* Unity游戏区域 */}
         <section className="unity-section">
-          <UnityContainer />
+          <UnityContainer unityBridge={unityBridge} /> {/* 传递 unityBridge */}
         </section>
 
         {/* 聊天UI区域 */}
-        <ChatContainer />
+        <ChatContainer unityBridge={unityBridge} />
       </main>
 
       {/* 底部信息栏 */}

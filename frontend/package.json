@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "@craco/craco": "^7.1.0",
     "@emotion/react": "^11.11.0",
     "@emotion/styled": "^11.11.0",
     "@types/react": "^18.2.0",
@@ -16,9 +17,9 @@
     "web-vitals": "^2.1.4"
   },
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build && copyfiles -u 1 \"public/unity-build/**/*\" build/",
-    "test": "react-scripts test",
+    "start": "craco start",
+    "build": "craco build && copyfiles -u 1 \"public/unity-build/**/*\" build/",
+    "test": "craco test",
     "eject": "react-scripts eject",
     "serve": "serve -s build -l 3000"
   },

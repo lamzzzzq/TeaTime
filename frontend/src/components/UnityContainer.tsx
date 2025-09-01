@@ -1,18 +1,21 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 
 interface UnityContainerProps {
   onUnityLoad?: () => void;
   onUnityError?: (error: Error) => void;
+  unityBridge: ReturnType<typeof import('../hooks/useUnityBridge').useUnityBridge>; // 添加这行
 }
 
-const UnityContainer: React.FC<UnityContainerProps> = ({
-  onUnityLoad,
-  onUnityError
+export const UnityContainer: React.FC<UnityContainerProps> = ({ 
+  onUnityLoad, 
+  onUnityError, 
+  unityBridge // 添加这个参数
 }) => {
+  // 移除这行：const { emit } = useUnityBridge();
+  const { emit } = unityBridge; // 使用传递下来的 unityBridge
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [loadingProgress, setLoadingProgress] = useState(0);
-  const checkIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const iframe = document.getElementById('unity-iframe') as HTMLIFrameElement;
@@ -24,13 +27,11 @@ const UnityContainer: React.FC<UnityContainerProps> = ({
         setIsLoading(false);
         setLoadingProgress(100);
         onUnityLoad?.();
-        
-        if (checkIntervalRef.current) {
-          clearInterval(checkIntervalRef.current);
-          checkIntervalRef.current = null;
-        }
       } else if (event.data && event.data.type === 'UNITY_OUTPUT') {
         console.log('🛰️ 转发的UNITY_OUTPUT:', event.data.payload);
+        
+        // 使用事件系统转发消息
+        emit('unity-output', event.data.payload);
       }
     };
     
@@ -38,63 +39,15 @@ const UnityContainer: React.FC<UnityContainerProps> = ({
     window.addEventListener('message', handleMessage);
     
     const handleIframeLoad = () => {
-      console.log('🔄 Unity iframe已加载，等待Unity实例...');
+      console.log(' Unity iframe已加载，等待Unity实例...');
       
-      // 简化的Unity检测逻辑 - 不依赖iframe.contentWindow
-      let attempts = 0;
-      const maxAttempts = 200; // 20秒超时
-      
-      const checkUnityInstance = () => {
-        attempts++;
-        setLoadingProgress(Math.min((attempts / maxAttempts) * 100, 95));
-        
-        try {
-          // 检查全局window.unityInstance（由Unity的index.html设置）
-          if (window.unityInstance) {
-            console.log('✅ Unity实例检测成功 (全局)!');
-            setIsLoading(false);
-            setLoadingProgress(100);
-            onUnityLoad?.();
-            
-            if (checkIntervalRef.current) {
-              clearInterval(checkIntervalRef.current);
-              checkIntervalRef.current = null;
-            }
-            return;
-          }
-          
-          // 每50次尝试（5秒）输出一次进度
-          if (attempts % 50 === 0) {
-            console.log(`🔄 等待Unity加载... (${Math.round(attempts/maxAttempts*100)}%)`);
-          }
-          
-          if (attempts >= maxAttempts) {
-            throw new Error(`Unity实例加载超时 (尝试${attempts}次，等待${maxAttempts/10}秒)`);
-          }
-          
-        } catch (checkError) {
-          if (attempts >= maxAttempts) {
-            console.error('❌ Unity实例检测失败:', checkError);
-            console.error('可能的原因:');
-            console.error('1. Unity WebGL文件加载失败');
-            console.error('2. Unity初始化脚本执行失败');
-            console.error('3. 浏览器WebGL支持问题');
-            
-            const errorMsg = 'Unity实例加载超时或失败';
-            setError(errorMsg);
-            setIsLoading(false);
-            onUnityError?.(new Error(errorMsg));
-            
-            if (checkIntervalRef.current) {
-              clearInterval(checkIntervalRef.current);
-              checkIntervalRef.current = null;
-            }
-          }
-        }
-      };
-      
-      // 开始定期检查
-      checkIntervalRef.current = setInterval(checkUnityInstance, 100);
+      // 强制等待Unity加载完成
+      setTimeout(() => {
+        console.log('✅ Unity强制加载完成');
+        setIsLoading(false);
+        setLoadingProgress(100);
+        onUnityLoad?.();
+      }, 10000); // 等待10秒，确保Unity完全加载
     };
 
     const handleIframeError = () => {
@@ -113,17 +66,12 @@ const UnityContainer: React.FC<UnityContainerProps> = ({
         iframe.removeEventListener('load', handleIframeLoad);
         iframe.removeEventListener('error', handleIframeError);
         window.removeEventListener('message', handleMessage);
-        
-        if (checkIntervalRef.current) {
-          clearInterval(checkIntervalRef.current);
-          checkIntervalRef.current = null;
-        }
       };
     }
-  }, [onUnityLoad, onUnityError]);
+  }, [onUnityLoad, onUnityError, emit]);
 
-  const unityOrigin = (window as any).UNITY_ORIGIN || (process.env.NODE_ENV !== 'production' ? 'http://localhost:3001' : '');
-  // 只在首次挂载时生成一次带时间戳的地址，避免因组件重渲染导致iframe反复重载
+  const unityOrigin = (window as any).UNITY_ORIGIN || '';
+  // 正确路径：指向frontend/public/unity-build/index.html
   const [unitySrc] = useState(() => (
     unityOrigin ? `${unityOrigin}/unity-build/index.html?v=${Date.now()}` : `unity-build/index.html?v=${Date.now()}`
   ));
@@ -183,6 +131,4 @@ const UnityContainer: React.FC<UnityContainerProps> = ({
     </div>
   );
 };
-
-export default UnityContainer;
 

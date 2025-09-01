@@ -1,9 +1,9 @@
 const cacheName = "DefaultCompany-ConvaiWebGL-0.1";
 const contentToCache = [
-    "Build/20250825.loader.js",
-    "Build/20250825.framework.js.unityweb",
-    "Build/20250825.data.unityweb",
-    "Build/20250825.wasm.unityweb",
+    "Build/20250827.loader.js",
+    "Build/20250827.framework.js.unityweb",
+    "Build/20250827.data.unityweb",
+    "Build/20250827.wasm.unityweb",
     "TemplateData/style.css"
 
 ];

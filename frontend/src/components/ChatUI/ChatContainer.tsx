@@ -3,16 +3,19 @@ import ChatMessage from './ChatMessage.tsx';
 import ChatInput from './ChatInput.tsx';
 import NPCInfo from './NPCInfo.tsx';
 import { ChatMessage as ChatMessageType, NPCInfo as NPCInfoType } from '../../types/unity.ts';
-import { useUnityBridge } from '../../hooks/useUnityBridge.ts';
 
-const ChatContainer: React.FC = () => {
+interface ChatContainerProps {
+  unityBridge: ReturnType<typeof import('../../hooks/useUnityBridge').useUnityBridge>;
+}
+
+const ChatContainer: React.FC<ChatContainerProps> = ({ unityBridge }) => {
   const [messages, setMessages] = useState<ChatMessageType[]>([]);
   const [currentNPC, setCurrentNPC] = useState<NPCInfoType | null>(null);
   const [isMinimized, setIsMinimized] = useState(false);
   const [isNPCTalking, setIsNPCTalking] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const { status, sendText, startVoice, stopVoice, testConnection, on, off } = useUnityBridge();
+  const { status, sendText, startVoice, stopVoice, testConnection, on, off } = unityBridge;
 
   // 滚动到底部
   const scrollToBottom = useCallback(() => {
@@ -32,52 +35,40 @@ const ChatContainer: React.FC = () => {
     setTimeout(scrollToBottom, 100);
   }, [scrollToBottom]);
 
+  // 修复状态更新逻辑
+  const updateMessageStatus = useCallback((messageId: string, newStatus: 'sent' | 'pending' | 'error') => {
+    setMessages(prev => prev.map(msg => 
+      msg.id === messageId 
+        ? { ...msg, status: newStatus }
+        : msg
+    ));
+  }, []);
+
   // 处理发送文本消息
   const handleSendText = useCallback((text: string) => {
-    // 添加用户消息
-    addMessage({
+    if (!text.trim()) return;
+    
+    const message: ChatMessageType = {
+      id: Date.now().toString(),
       type: 'user',
-      content: text,
+      content: text.trim(),
       timestamp: new Date(),
-      status: 'sending'
-    });
-
+      npcName: '你',
+      status: 'pending' // 初始状态为pending
+    };
+    
+    addMessage(message);
+    
     // 发送到Unity
-    const success = sendText(text);
-
-    if (!success) {
-      // 未连接时sendText会排队，这里标记为pending而不是error
-      setMessages(prev => 
-        prev.map(msg => 
-          msg.timestamp.getTime() > Date.now() - 1000 && msg.type === 'user'
-            ? { ...msg, status: status.isUnityLoaded ? 'error' : 'pending' }
-            : msg
-        )
-      );
-      if (status.isUnityLoaded) {
-        addMessage({
-          type: 'system',
-          content: '消息发送失败，请稍后重试',
-          timestamp: new Date()
-        });
-      } else {
-        addMessage({
-          type: 'system',
-          content: 'Unity未连接，消息已排队，连接后自动发送。',
-          timestamp: new Date()
-        });
-      }
+    const success = unityBridge.sendText(text.trim());
+    
+    // 根据发送结果更新状态
+    if (success) {
+      updateMessageStatus(message.id, 'sent');
     } else {
-      // 发送成功，更新消息状态
-      setMessages(prev => 
-        prev.map(msg => 
-          msg.timestamp.getTime() > Date.now() - 1000 && msg.type === 'user'
-            ? { ...msg, status: 'sent' }
-            : msg
-        )
-      );
+      updateMessageStatus(message.id, 'error');
     }
-  }, [sendText, addMessage]);
+  }, [unityBridge, addMessage, updateMessageStatus]);
 
   // 处理语音录制
   const handleStartVoice = useCallback(() => {
@@ -90,7 +81,8 @@ const ChatContainer: React.FC = () => {
       addMessage({
         type: 'system',
         content: '语音录制开始失败，请检查Unity连接状态',
-        timestamp: new Date()
+        timestamp: new Date(),
+        status: 'error'
       });
     }
   }, [startVoice, addMessage]);
@@ -105,7 +97,8 @@ const ChatContainer: React.FC = () => {
       addMessage({
         type: 'system',
         content: '语音录制停止失败',
-        timestamp: new Date()
+        timestamp: new Date(),
+        status: 'error'
       });
     }
   }, [stopVoice, addMessage]);
@@ -117,116 +110,54 @@ const ChatContainer: React.FC = () => {
         id: 'welcome',
         type: 'system',
         content: '欢迎使用 Convai 智能对话系统！你可以通过文字或语音与AI角色进行对话。',
-        timestamp: new Date()
+        timestamp: new Date(),
+        status: 'sent'
       }]);
     }
   }, []);
 
   // 监听Unity输出（按照API指南格式）
   useEffect(() => {
-    // 监听用户文本输入（包括语音转录）
-    const handleUserText = (data: any) => {
-      console.log('👤 Unity用户输入（包括语音转录）:', data);
+    // 只保留 unity-output 事件监听
+    const handleUnityOutput = (data: any) => {
+      console.log('📨 收到Unity输出事件:', data);
       
-      // 添加用户消息到聊天记录
-      addMessage({
-        type: 'user',
-        content: data.content || '未知输入',
-        timestamp: new Date(),
-        status: 'sent'
-      });
-    };
-
-    // 监听NPC回复
-    const handleNPCText = (data: any) => {
-      console.log('🤖 Unity NPC回复:', data);
-      
-      addMessage({
-        type: 'npc',
-        content: data.content || '未知回复',
-        timestamp: new Date(),
-        npcName: data.npcName || '未知NPC',
-        status: 'sent'
-      });
-    };
-
-    // 监听NPC说话状态
-    const handleTalkingStatus = (data: any) => {
-      console.log('🗣️ Unity说话状态:', data);
-      
-      const isTalking = data.additionalData?.isTalking || false;
-      setIsNPCTalking(isTalking);
-      
-      // 更新当前NPC信息
-      if (data.npcName) {
-        setCurrentNPC(prev => ({
-          name: data.npcName,
-          id: prev?.id || 'unknown',
-          status: isTalking ? 'talking' : 'listening',
-          isTalking
-        }));
+      // 根据消息类型分发到对应的处理函数
+      switch (data.type) {
+        case 'npc_text':
+          console.log('🤖 Unity NPC回复:', data);
+          addMessage({
+            type: 'npc',
+            content: data.content || '未知回复',
+            timestamp: new Date(),
+            npcName: 'NPC',
+            status: 'sent'
+          });
+          break;
+          
+        case 'user_text':
+          // ❌ 删除这个分支 - 不处理Unity回传的用户输入
+          console.log('👤 Unity确认用户输入（跳过显示）:', data);
+          break;
+          
+        case 'talking_status':
+          console.log('🗣️ Unity说话状态:', data);
+          // 处理说话状态变化
+          break;
+          
+        default:
+          console.log('📝 未知Unity输出类型:', data.type);
       }
     };
 
-    // 监听Unity连接成功
-    const handleUnityConnected = (unityInstance: any) => {
-      console.log('🎉 Unity连接成功:', unityInstance);
-      
-      addMessage({
-        type: 'system',
-        content: 'Unity连接成功！现在可以开始对话了。',
-        timestamp: new Date()
-      });
-      
-      // 可以在这里执行连接后的初始化操作
-      // 比如测试通信
-      setTimeout(() => {
-        testConnection();
-      }, 1000);
-    };
-
-    // 监听Unity错误
-    const handleUnityError = (error: any) => {
-      console.error('❌ Unity错误:', error);
-      
-      addMessage({
-        type: 'system',
-        content: `Unity连接失败: ${error.message || '未知错误'}`,
-        timestamp: new Date()
-      });
-    };
-
-    // 监听连接状态变化
-    const handleConnectionChange = (connectionStatus: string) => {
-      console.log('🔗 Unity连接状态变化:', connectionStatus);
-      
-      if (connectionStatus === 'disconnected') {
-        addMessage({
-          type: 'system',
-          content: 'Unity连接已断开',
-          timestamp: new Date()
-        });
-      }
-    };
-
-    // 注册事件监听器
-    on('unity-user_text', handleUserText);
-    on('unity-npc_text', handleNPCText);
-    on('unity-talking_status', handleTalkingStatus);
-    on('unity-connected', handleUnityConnected);
-    on('unity-error', handleUnityError);
-    on('connection-status-change', handleConnectionChange);
+    // 只添加 unity-output 事件监听器
+    unityBridge.on('unity-output', handleUnityOutput);
 
     // 清理函数
     return () => {
-      off('unity-user_text', handleUserText);
-      off('unity-npc_text', handleNPCText);
-      off('unity-talking_status', handleTalkingStatus);
-      off('unity-connected', handleUnityConnected);
-      off('unity-error', handleUnityError);
-      off('connection-status-change', handleConnectionChange);
+      unityBridge.off('unity-output', handleUnityOutput);
     };
-  }, [on, off, addMessage, testConnection]);
+  }, [unityBridge, addMessage]);
 
   // 初始化欢迎消息
   useEffect(() => {
@@ -234,7 +165,8 @@ const ChatContainer: React.FC = () => {
       addMessage({
         type: 'system',
         content: '欢迎使用 Convai 智能对话系统！你可以通过文字或语音与AI角色进行对话。',
-        timestamp: new Date()
+        timestamp: new Date(),
+        status: 'sent'
       });
     }
   }, [messages.length, addMessage]);
