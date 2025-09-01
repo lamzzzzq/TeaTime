@@ -12,10 +12,9 @@ const ChatContainer: React.FC<ChatContainerProps> = ({ unityBridge }) => {
   const [messages, setMessages] = useState<ChatMessageType[]>([]);
   const [currentNPC, setCurrentNPC] = useState<NPCInfoType | null>(null);
   const [isMinimized, setIsMinimized] = useState(false);
-  const [isNPCTalking, setIsNPCTalking] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const { status, sendText, startVoice, stopVoice, testConnection, on, off } = unityBridge;
+  const { status, sendText, on, off } = unityBridge;
 
   // 滚动到底部
   const scrollToBottom = useCallback(() => {

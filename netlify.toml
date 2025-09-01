@@ -6,6 +6,7 @@
 [build.environment]
   NODE_VERSION = "18"
   NPM_VERSION = "8"
+  CI = "false"
 
 # 处理Unity WebGL文件的特殊MIME类型
 [[headers]]

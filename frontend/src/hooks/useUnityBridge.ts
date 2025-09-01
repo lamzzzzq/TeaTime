@@ -62,7 +62,7 @@ export const useUnityBridge = () => {
 
   // 处理来自Unity的输出（按照API指南格式）
   const handleUnityOutput = useCallback((data: UnityOutputData) => {
-    const { type, content, npcName, timestamp, additionalData } = data;
+    const { type, content, npcName, timestamp } = data;
 
     // 生成消息唯一标识符（基于类型和内容，去掉末尾空格）
     const cleanContent = content?.trim() || '';
