@@ -41,7 +41,13 @@
     Cross-Origin-Embedder-Policy = "require-corp"
     Cross-Origin-Opener-Policy = "same-origin"
 
-# SPA路由支持 - 所有路由都返回index.html
+# Unity WebGL文件直接访问
+[[redirects]]
+  from = "/unity-build/*"
+  to = "/unity-build/:splat"
+  status = 200
+
+# SPA路由支持 - 其他路由都返回index.html
 [[redirects]]
   from = "/*"
   to = "/index.html"
