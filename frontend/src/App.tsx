@@ -32,6 +32,22 @@ const App: React.FC = () => {
 
   return (
     <div className="app-container">
+      {/* 调试信息 */}
+      <div style={{
+        position: 'absolute',
+        top: '10px',
+        left: '10px',
+        background: 'white',
+        padding: '10px',
+        borderRadius: '5px',
+        zIndex: 1000,
+        fontSize: '12px'
+      }}>
+        <div>Unity状态: {unityBridge.status.isUnityLoaded ? '已加载' : '未加载'}</div>
+        <div>连接状态: {unityBridge.status.connectionStatus}</div>
+        <div>会话时长: {formatDuration(sessionDuration)}</div>
+      </div>
+
       {/* 顶部导航栏 */}
       <Header unityStatus={unityBridge.status} />
 
@@ -39,7 +55,7 @@ const App: React.FC = () => {
       <main className="main-content">
         {/* Unity游戏区域 */}
         <section className="unity-section">
-          <UnityContainer unityBridge={unityBridge} /> {/* 传递 unityBridge */}
+          <UnityContainer unityBridge={unityBridge} />
         </section>
 
         {/* 聊天UI区域 */}
