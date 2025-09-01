@@ -72,35 +72,29 @@ const ChatContainer: React.FC<ChatContainerProps> = ({ unityBridge }) => {
   // 处理语音录制
   const handleStartVoice = useCallback(() => {
     console.log('🎤 开始语音录制');
-    const success = startVoice();
-    if (success) {
-      console.log('✅ 语音输入开始成功');
-    } else {
-      console.error('❌ 语音输入开始失败');
-      addMessage({
-        type: 'system',
-        content: '语音录制开始失败，请检查Unity连接状态',
-        timestamp: new Date(),
-        status: 'error'
-      });
-    }
-  }, [startVoice, addMessage]);
+    // 临时禁用语音功能，避免错误
+    console.log('语音功能暂时禁用');
+    
+    addMessage({
+      type: 'system',
+      content: '语音功能暂时禁用，请使用文字输入',
+      timestamp: new Date(),
+      status: 'info'
+    });
+  }, [addMessage]);
 
   const handleStopVoice = useCallback(() => {
     console.log('🛑 停止语音录制');
-    const success = stopVoice();
-    if (success) {
-      console.log('✅ 语音输入停止成功');
-    } else {
-      console.error('❌ 语音输入停止失败');
-      addMessage({
-        type: 'system',
-        content: '语音录制停止失败',
-        timestamp: new Date(),
-        status: 'error'
-      });
-    }
-  }, [stopVoice, addMessage]);
+    // 临时禁用语音功能，避免错误
+    console.log('语音功能暂时禁用');
+    
+    addMessage({
+      type: 'system',
+      content: '语音功能暂时禁用',
+      timestamp: new Date(),
+      status: 'info'
+    });
+  }, [addMessage]);
 
   // 清空聊天记录
   const handleClearChat = useCallback(() => {
