@@ -1,0 +1,29 @@
+/unity-build/Build/*.data.unityweb
+  Content-Type: application/octet-stream
+  Content-Encoding: gzip
+  Cache-Control: public, max-age=31536000, immutable
+
+/unity-build/Build/*.wasm.unityweb
+  Content-Type: application/wasm
+  Content-Encoding: gzip
+  Cache-Control: public, max-age=31536000, immutable
+
+/unity-build/Build/*.framework.js.unityweb
+  Content-Type: application/javascript
+  Content-Encoding: gzip
+  Cache-Control: public, max-age=31536000, immutable
+
+# 兼容未来使用 .gz 产物的情况
+/unity-build/Build/*.data.gz
+  Content-Type: application/octet-stream
+  Content-Encoding: gzip
+
+/unity-build/Build/*.wasm.gz
+  Content-Type: application/wasm
+  Content-Encoding: gzip
+
+/unity-build/Build/*.framework.js.gz
+  Content-Type: application/javascript
+  Content-Encoding: gzip
+
+

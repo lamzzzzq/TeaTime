@@ -1,0 +1,19 @@
+/unity-build/Build/Bryant.data.unityweb
+  Content-Type: application/octet-stream
+  Content-Encoding: gzip
+  Cache-Control: public, max-age=31536000, immutable
+
+/unity-build/Build/Bryant.wasm.unityweb
+  Content-Type: application/wasm
+  Content-Encoding: gzip
+  Cache-Control: public, max-age=31536000, immutable
+
+/unity-build/Build/Bryant.framework.js.unityweb
+  Content-Type: application/javascript
+  Content-Encoding: gzip
+  Cache-Control: public, max-age=31536000, immutable
+
+/unity-build/Build/Bryant.loader.js
+  Content-Type: application/javascript
+  Cache-Control: public, max-age=31536000, immutable
+

@@ -1,9 +1,9 @@
-const cacheName = "DefaultCompany-ConvaiWebGL-0.1";
+const cacheName = "DefaultCompany-WebConvai-0.1";
 const contentToCache = [
-    "Build/20250824.loader.js",
-    "Build/20250824.framework.js.unityweb",
-    "Build/20250824.data.unityweb",
-    "Build/20250824.wasm.unityweb",
+    "Build/Sylvia.loader.js",
+    "Build/Sylvia.framework.js",
+    "Build/Sylvia.data",
+    "Build/Sylvia.wasm",
     "TemplateData/style.css"
 
 ];

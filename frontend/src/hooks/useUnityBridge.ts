@@ -15,6 +15,7 @@ declare global {
 let globalMessageListenerActive = false;
 let globalMessageHandler: ((event: MessageEvent) => void) | null = null;
 
+
 export const useUnityBridge = () => {
   const [status, setStatus] = useState<UnityBridgeStatus>({
     isUnityLoaded: false,
@@ -34,7 +35,11 @@ export const useUnityBridge = () => {
     if (!eventListeners.current.has(event)) {
       eventListeners.current.set(event, []);
     }
-    eventListeners.current.get(event)?.push(callback);
+    
+    const listeners = eventListeners.current.get(event);
+    if (listeners) {
+      listeners.push(callback);
+    }
   }, []);
 
   const off = useCallback((event: string, callback: Function) => {
@@ -49,28 +54,34 @@ export const useUnityBridge = () => {
 
   const emit = useCallback((event: string, data?: any) => {
     const listeners = eventListeners.current.get(event);
-    if (listeners) {
-      listeners.forEach(callback => {
+    
+    if (listeners && listeners.length > 0) {
+      listeners.forEach((callback) => {
         try {
           callback(data);
         } catch (error) {
-          console.error(`❌ 事件回调执行失败 [${event}]:`, error);
+          console.error(`事件回调执行失败 [${event}]:`, error);
         }
       });
     }
   }, []);
 
-  // 处理来自Unity的输出（按照API指南格式）
+  // 处理来自Unity的输出
   const handleUnityOutput = useCallback((data: UnityOutputData) => {
-    const { type, content, npcName, timestamp } = data;
+    // 检查数据是否有效
+    if (!data || typeof data !== 'object') {
+      return;
+    }
+    
+    const { type, content, npcName } = data;
 
-    // 生成消息唯一标识符（基于类型和内容，去掉末尾空格）
+    // 生成消息唯一标识符（基于类型、内容和NPC名称）
     const cleanContent = content?.trim() || '';
-    const messageId = `${type}_${cleanContent}`;
+    const cleanNpcName = npcName || '';
+    const messageId = `${type}_${cleanNpcName}_${cleanContent}`;
     
     // 检查是否已经处理过这条消息
     if (processedMessages.current.has(messageId)) {
-      console.log('🔄 React跳过重复消息:', messageId);
       return;
     }
     
@@ -80,9 +91,7 @@ export const useUnityBridge = () => {
     // 延迟清理消息ID（防止短时间内的重复消息）
     setTimeout(() => {
       processedMessages.current.delete(messageId);
-    }, 3000); // 3秒后清理，缩短清理时间
-
-    console.log('📨 React处理Unity消息:', type, content);
+    }, 5000);
 
     // 触发对应类型的事件
     emit('unity-output', data);
@@ -91,20 +100,14 @@ export const useUnityBridge = () => {
     // 根据消息类型进行处理
     switch (type) {
       case 'user_text':
-        console.log('👤 用户输入（包括语音转录）:', content);
         emit('unity-user_text', data);
         break;
       case 'npc_text':
-        console.log('🤖 NPC回复:', npcName, content);
         emit('unity-npc_text', data);
         break;
       case 'talking_status':
-        const isTalking = additionalData?.isTalking || false;
-        console.log(`🗣️ NPC ${isTalking ? '开始' : '停止'}说话:`, npcName);
         emit('unity-talking_status', data);
         break;
-      default:
-        console.log('📝 未知Unity输出类型:', type, data);
     }
   }, [emit]);
 
@@ -131,16 +134,17 @@ export const useUnityBridge = () => {
 
   // 监听iframe消息 - 全局单例模式
   const setupMessageListener = useCallback(() => {
-    // 全局检查：如果已经有监听器在工作，跳过
-    if (globalMessageListenerActive) {
-      console.log('🔄 全局消息监听器已存在，跳过重复设置');
-      return () => {}; // 返回空清理函数
+    // 如果已有监听器，先清除
+    if (globalMessageHandler) {
+      window.removeEventListener('message', globalMessageHandler);
     }
 
     const handleMessage = (event: MessageEvent) => {
-      if (event.data.type === 'UNITY_OUTPUT') {
-        console.log('📨 收到Unity iframe消息:', event.data.payload);
-        handleUnityOutput(event.data.payload);
+      if (event.data && event.data.type === 'UNITY_OUTPUT') {
+        // 检查payload是否存在且有效
+        if (event.data.payload && typeof event.data.payload === 'object') {
+          handleUnityOutput(event.data.payload);
+        }
       }
     };
 
@@ -149,15 +153,12 @@ export const useUnityBridge = () => {
     globalMessageListenerActive = true;
     
     window.addEventListener('message', handleMessage);
-    console.log(' iframe消息监听器已设置（全局单例）');
 
     return () => {
-      // 关键：不在清理函数中重置全局标记！
-      // 只移除事件监听器，保持全局标记为true
       if (globalMessageHandler) {
         window.removeEventListener('message', globalMessageHandler);
         globalMessageHandler = null;
-        // 不要重置 globalMessageListenerActive = false;
+        globalMessageListenerActive = false;
       }
     };
   }, [handleUnityOutput]);
@@ -223,6 +224,9 @@ export const useUnityBridge = () => {
 
   // 发送数据到Unity（按照API指南格式）
   const sendToUnity = useCallback((inputData: WebInputData): boolean => {
+    console.log('🚀 [DEBUG] sendToUnity 被调用:', inputData);
+    console.log('🚀 [DEBUG] 当前状态:', status);
+    
     // 未就绪：加入队列
     if (!status.isUnityLoaded) {
       console.log('⏳ Unity未就绪，消息加入队列:', inputData);
@@ -232,21 +236,34 @@ export const useUnityBridge = () => {
     }
 
     const jsonData = JSON.stringify(inputData);
-    console.log('📤 发送数据到Unity:', jsonData);
+    console.log('📤 [DEBUG] 准备发送到Unity:', jsonData);
+    console.log('📤 [DEBUG] window.unityInstance:', window.unityInstance);
+    console.log('📤 [DEBUG] iframe元素:', document.getElementById('unity-iframe'));
 
     try {
       // 同源时可直接调用（保留向后兼容）
       if (window.unityInstance && typeof window.unityInstance.SendMessage === 'function') {
+        console.log('📤 [DEBUG] 使用直接调用方式发送消息');
         window.unityInstance.SendMessage('ConvaiGRPCWebAPI', 'InjectWebInput', jsonData);
+        console.log('✅ [DEBUG] 直接调用发送成功');
       } else {
         // 跨源：通过 postMessage 通知子页，由子页调用 SendMessage
+        console.log('📤 [DEBUG] 使用postMessage方式发送消息');
         const iframe = document.getElementById('unity-iframe') as HTMLIFrameElement | null;
-        iframe?.contentWindow?.postMessage({ type: 'UNITY_INPUT', payload: jsonData }, '*');
+        if (iframe && iframe.contentWindow) {
+          console.log('📤 [DEBUG] 找到iframe，发送postMessage');
+          iframe.contentWindow.postMessage({ type: 'UNITY_INPUT', payload: jsonData }, '*');
+          console.log('✅ [DEBUG] postMessage发送成功');
+        } else {
+          console.error('❌ [DEBUG] 找不到iframe或contentWindow');
+          return false;
+        }
       }
       emit('message-sent', inputData);
+      console.log('✅ [DEBUG] 消息发送完成，触发message-sent事件');
       return true;
     } catch (error) {
-      console.error('❌ 发送数据到Unity失败:', error);
+      console.error('❌ [DEBUG] 发送数据到Unity失败:', error);
       emit('send-error', { error, inputData });
       return false;
     }
@@ -267,24 +284,54 @@ export const useUnityBridge = () => {
 
   // 开始语音输入
   const startVoice = useCallback((): boolean => {
+    console.log('🎤 [useUnityBridge] startVoice() 被调用');
+    console.log('🎤 [useUnityBridge] 当前状态:', status);
+    
+    // 检查AudioContext状态并尝试恢复
+    if (window.AudioContext || (window as any).webkitAudioContext) {
+      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+      const audioContext = new AudioContext();
+      
+      if (audioContext.state === 'suspended') {
+        console.log('🔊 [useUnityBridge] 尝试恢复AudioContext...');
+        audioContext.resume().then(() => {
+          console.log('✅ [useUnityBridge] AudioContext已恢复');
+        }).catch(error => {
+          console.warn('⚠️ [useUnityBridge] AudioContext恢复失败:', error);
+        });
+      }
+    }
+    
     const inputData: WebInputData = {
       type: 'voice_start',
       source: 'web'
     };
     
+    console.log('🎤 [useUnityBridge] 准备发送数据到Unity:', inputData);
+    
     setStatus(prev => ({ ...prev, isVoiceRecording: true }));
-    return sendToUnity(inputData);
-  }, [sendToUnity]);
+    const result = sendToUnity(inputData);
+    console.log('🎤 [useUnityBridge] sendToUnity 返回结果:', result);
+    
+    return result;
+  }, [sendToUnity, status]);
 
   // 停止语音输入
   const stopVoice = useCallback((): boolean => {
+    console.log('🛑 [useUnityBridge] stopVoice() 被调用');
+    
     const inputData: WebInputData = {
       type: 'voice_stop',
       source: 'web'
     };
     
+    console.log('🛑 [useUnityBridge] 准备发送数据到Unity:', inputData);
+    
     setStatus(prev => ({ ...prev, isVoiceRecording: false }));
-    return sendToUnity(inputData);
+    const result = sendToUnity(inputData);
+    console.log('🛑 [useUnityBridge] sendToUnity 返回结果:', result);
+    
+    return result;
   }, [sendToUnity]);
 
   // 更新连接状态
@@ -314,7 +361,7 @@ export const useUnityBridge = () => {
     console.log('🔧 初始化Unity桥接...');
     updateConnectionStatus('connecting');
     
-    let timeoutId: NodeJS.Timeout;
+    let timeoutId: number;
     
     // 监听Unity准备就绪消息
     const handleUnityMessage = (event: MessageEvent) => {
@@ -350,8 +397,13 @@ export const useUnityBridge = () => {
         window.removeEventListener('message', handleUnityMessage);
       } else if (event.data && event.data.type === 'UNITY_OUTPUT') {
         // 处理来自Unity iframe的输出消息
-        console.log('📨 收到Unity输出 (iframe):', event.data.data);
-        handleUnityOutput(event.data.data);
+        console.log('📨 收到Unity输出 (iframe):', event.data.payload);
+        // 检查payload是否存在且有效
+        if (event.data.payload && typeof event.data.payload === 'object') {
+          handleUnityOutput(event.data.payload);
+        } else {
+          console.error('❌ Unity输出消息的payload无效:', event.data.payload);
+        }
       }
     };
     
@@ -378,8 +430,18 @@ export const useUnityBridge = () => {
           emit('unity-connected', unityInstance);
         }).catch(error => {
           console.error('❌ Unity桥接初始化失败:', error);
-          updateConnectionStatus('disconnected');
-          emit('unity-error', error);
+          // 即使检测失败，也尝试强制连接（用于调试）
+          console.log('🔧 尝试强制连接Unity...');
+          setupGlobalReceiver();
+          setStatus(prev => ({ 
+            ...prev, 
+            isUnityLoaded: true, 
+            hasUnityInstance: false, // 标记为未检测到实例但强制连接
+            lastHeartbeat: new Date()
+          }));
+          updateConnectionStatus('connected');
+          processMessageQueue();
+          emit('unity-connected', null);
         });
       }
     }, 30000);
@@ -431,13 +493,19 @@ export const useUnityBridge = () => {
   // 当Unity加载状态改变时处理队列
   useEffect(() => {
     if (status.isUnityLoaded) {
-      processMessageQueue();
+      // 延迟处理队列，确保Unity完全就绪
+      setTimeout(() => {
+        console.log('📮 Unity状态改变，延迟处理消息队列');
+        processMessageQueue();
+      }, 2000); // 延迟2秒确保Unity完全初始化
     }
   }, [status.isUnityLoaded, processMessageQueue]);
 
   // 测试通信功能
   const testConnection = useCallback(() => {
     console.log('📞 测试Unity通信...');
+    console.log('🔍 当前状态:', status);
+    console.log('🔍 Unity实例:', window.unityInstance);
     
     const testData: WebInputData = {
       type: 'text',
@@ -448,7 +516,23 @@ export const useUnityBridge = () => {
     const success = sendToUnity(testData);
     console.log(success ? '✅ 测试消息发送成功' : '❌ 测试消息发送失败');
     return success;
-  }, [sendToUnity]);
+  }, [sendToUnity, status]);
+
+  // 强制设置Unity为已连接状态（用于调试）
+  const forceConnect = useCallback(() => {
+    console.log('🔧 强制设置Unity为已连接状态...');
+    setStatus(prev => ({ 
+      ...prev, 
+      isUnityLoaded: true, 
+      hasUnityInstance: true,
+      connectionStatus: 'connected',
+      lastHeartbeat: new Date()
+    }));
+    updateConnectionStatus('connected');
+    processMessageQueue();
+    emit('unity-connected', window.unityInstance);
+  }, [updateConnectionStatus, processMessageQueue, emit]);
+
 
   return {
     status,
@@ -457,10 +541,8 @@ export const useUnityBridge = () => {
     stopVoice,
     sendToUnity,
     reconnect,
-    testConnection,
     on,
     off,
-    emit,
-    handleUnityOutput,  // 添加这行
+    emit
   };
 };

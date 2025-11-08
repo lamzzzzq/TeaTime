@@ -162,6 +162,60 @@ mergeInto(LibraryManager.library, {
             console.error('❌ getBrowserInfo执行失败:', error);
             return 0;
         }
+    },
+
+    /**
+     * 初始化麦克风 - Unity调用此函数初始化语音功能
+     */
+    initMicrophone: function() {
+        try {
+            console.log('🎤 [jslib] initMicrophone() 被Unity调用');
+            
+            // 调用HTML中定义的全局函数
+            if (typeof window.initMicrophone === 'function') {
+                window.initMicrophone();
+            } else {
+                console.warn('⚠️ [jslib] window.initMicrophone函数未定义');
+            }
+        } catch (error) {
+            console.error('❌ [jslib] initMicrophone执行失败:', error);
+        }
+    },
+
+    /**
+     * 开始录制音频块 - Unity调用此函数开始语音录制
+     */
+    startAudioChunk: function() {
+        try {
+            console.log('🎤 [jslib] startAudioChunk() 被Unity调用');
+            
+            // 调用HTML中定义的全局函数
+            if (typeof window.startAudioChunk === 'function') {
+                window.startAudioChunk();
+            } else {
+                console.warn('⚠️ [jslib] window.startAudioChunk函数未定义');
+            }
+        } catch (error) {
+            console.error('❌ [jslib] startAudioChunk执行失败:', error);
+        }
+    },
+
+    /**
+     * 结束录制音频块 - Unity调用此函数停止语音录制
+     */
+    endAudioChunk: function() {
+        try {
+            console.log('🛑 [jslib] endAudioChunk() 被Unity调用');
+            
+            // 调用HTML中定义的全局函数
+            if (typeof window.endAudioChunk === 'function') {
+                window.endAudioChunk();
+            } else {
+                console.warn('⚠️ [jslib] window.endAudioChunk函数未定义');
+            }
+        } catch (error) {
+            console.error('❌ [jslib] endAudioChunk执行失败:', error);
+        }
     }
 
 });

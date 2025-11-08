@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="TemplateData/style.css">
     <link rel="manifest" href="manifest.webmanifest">
     <!-- ConvaiWebGLSDK.js 暂时禁用，使用备用方案 -->
-    <script src="TemplateData/ConvaiWebGLSDK.js" onload="console.log('✅ ConvaiWebGLSDK.js 加载成功')" onerror="console.error('❌ ConvaiWebGLSDK.js 加载失败')"></script>
+    <!-- <script src="TemplateData/ConvaiWebGLSDK.js" onload="console.log('✅ ConvaiWebGLSDK.js 加载成功')" onerror="console.error('❌ ConvaiWebGLSDK.js 加载失败')"></script> -->
   </head>
   <body>
     <div id="unity-container">
@@ -172,7 +172,7 @@
       }
       
       // 尝试绑定到可能的Unity查找路径
-      if (unityInstance && unityInstance.Module) {
+      if (typeof unityInstance !== 'undefined' && unityInstance.Module) {
         unityInstance.Module.initMicrophone = initMicrophone;
         unityInstance.Module.startAudioChunk = startAudioChunk;
         unityInstance.Module.endAudioChunk = endAudioChunk;
@@ -348,7 +348,7 @@
             console.log('[Unity iframe] ✅ 函数已绑定到Module');
           }
           
-          if (unityInstance && unityInstance.Module) {
+          if (typeof unityInstance !== 'undefined' && unityInstance.Module) {
             unityInstance.Module.initMicrophone = initMicrophone;
             unityInstance.Module.startAudioChunk = startAudioChunk;
             unityInstance.Module.endAudioChunk = endAudioChunk;
@@ -525,18 +525,17 @@
       }
 
       var buildUrl = "Build";
-      var timestamp = Date.now();
-      var loaderUrl = buildUrl + "/Bryant.loader.js?v=" + timestamp;
+      var timestamp = Date.now(); // 缓存清除时间戳
+      var loaderUrl = buildUrl + "/Sylvia.loader.js?v=" + timestamp;
       var config = {
-        dataUrl:       buildUrl + "/Bryant.data.unityweb?v=" + timestamp,
-        frameworkUrl:  buildUrl + "/Bryant.framework.js.unityweb?v=" + timestamp,
-        codeUrl:       buildUrl + "/Bryant.wasm.unityweb?v=" + timestamp,
+        dataUrl: buildUrl + "/Sylvia.data?v=" + timestamp,
+        frameworkUrl: buildUrl + "/Sylvia.framework.js?v=" + timestamp,
+        codeUrl: buildUrl + "/Sylvia.wasm?v=" + timestamp,
         streamingAssetsUrl: "StreamingAssets",
         companyName: "DefaultCompany",
         productName: "WebConvai",
         productVersion: "0.1",
         showBanner: unityShowBanner,
-        decompressionFallback: "gzip"
       };
 
       // By default Unity keeps WebGL canvas render target size matched with

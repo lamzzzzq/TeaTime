@@ -1,38 +1,12 @@
 [build]
   base = "frontend"
   command = "CI=false npm run build"
-  publish = "build"
+  publish = "frontend/build"
 
 [build.environment]
   NODE_VERSION = "18"
   NPM_VERSION = "8"
   CI = "false"
-
-# 处理Unity WebGL文件的特殊MIME类型
-[[headers]]
-  for = "*.unityweb"
-  [headers.values]
-    Content-Type = "application/octet-stream"
-    Content-Encoding = "gzip"
-    Cache-Control = "public, max-age=31536000"
-
-[[headers]]
-  for = "*.wasm"
-  [headers.values]
-    Content-Type = "application/wasm"
-    Cache-Control = "public, max-age=31536000"
-
-[[headers]]
-  for = "*.data"
-  [headers.values]
-    Content-Type = "application/octet-stream"
-    Cache-Control = "public, max-age=31536000"
-
-[[headers]]
-  for = "*.js"
-  [headers.values]
-    Content-Type = "application/javascript"
-    Cache-Control = "public, max-age=31536000"
 
 # Unity WebGL需要的安全头
 [[headers]]
@@ -41,24 +15,67 @@
     Cross-Origin-Embedder-Policy = "require-corp"
     Cross-Origin-Opener-Policy = "same-origin"
 
-# SPA路由支持 - 所有路由都返回index.html
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
-
-# API代理（如果需要）
-# [[redirects]]
-#   from = "/api/*"
-#   to = "https://your-backend-url.com/api/:splat"
-#   status = 200
-
-# 缓存优化
+# ✨ Unity 文件优化配置（gzip 压缩）
 [[headers]]
-  for = "*.css"
+  for = "/unity-build/Build/Bryant.data.unityweb"
   [headers.values]
-    Cache-Control = "public, max-age=31536000"
+    Content-Type = "application/octet-stream"
+    Content-Encoding = "gzip"
+    Cache-Control = "public, max-age=31536000, immutable"
 
+[[headers]]
+  for = "/unity-build/Build/Bryant.wasm.unityweb"
+  [headers.values]
+    Content-Type = "application/wasm"
+    Content-Encoding = "gzip"
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/unity-build/Build/Bryant.framework.js.unityweb"
+  [headers.values]
+    Content-Type = "application/javascript"
+    Content-Encoding = "gzip"
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/unity-build/Build/*.wasm"
+  [headers.values]
+    Content-Type = "application/wasm"
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/unity-build/Build/*.data"
+  [headers.values]
+    Content-Type = "application/octet-stream"
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/unity-build/Build/*.js"
+  [headers.values]
+    Content-Type = "application/javascript"
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# ✨ 新增：字体文件优化
+[[headers]]
+  for = "/unity-build/Build/*.woff2"
+  [headers.values]
+    Content-Type = "font/woff2"
+    Cache-Control = "public, max-age=31536000, immutable"
+    Access-Control-Allow-Origin = "*"
+
+# JavaScript和CSS文件缓存
+[[headers]]
+  for = "/static/*.js"
+  [headers.values]
+    Content-Type = "application/javascript"
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/static/*.css"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# 图片文件缓存
 [[headers]]
   for = "*.png"
   [headers.values]
@@ -69,7 +86,28 @@
   [headers.values]
     Cache-Control = "public, max-age=31536000"
 
+# 修复ServiceWorker缓存问题
 [[headers]]
-  for = "*.ico"
+  for = "/ServiceWorker.js"
   [headers.values]
-    Cache-Control = "public, max-age=31536000"
+    Cache-Control = "no-cache, no-store, must-revalidate"
+    Pragma = "no-cache"
+    Expires = "0"
+
+# HTML不缓存（需要更新）
+[[headers]]
+  for = "/*.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+# 解决favicon 404问题
+[[redirects]]
+  from = "/favicon.ico"
+  to = "/favicon.png"
+  status = 200
+
+# SPA路由支持
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

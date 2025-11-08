@@ -184,6 +184,17 @@ class ConvaiWebServer {
                 if (filePath.endsWith('.js')) {
                     res.setHeader('Content-Type', 'application/javascript');
                 }
+                // 预压缩的gzip资源（Unity常见：.data.gz / .wasm.gz / .framework.js.gz）
+                if (filePath.endsWith('.gz')) {
+                    res.setHeader('Content-Encoding', 'gzip');
+                    if (filePath.endsWith('.data.gz')) {
+                        res.setHeader('Content-Type', 'application/octet-stream');
+                    } else if (filePath.endsWith('.wasm.gz')) {
+                        res.setHeader('Content-Type', 'application/wasm');
+                    } else if (filePath.endsWith('.js.gz')) {
+                        res.setHeader('Content-Type', 'application/javascript');
+                    }
+                }
                 
                 // 缓存控制
                 if (process.env.NODE_ENV === 'production') {

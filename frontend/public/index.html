@@ -2,14 +2,102 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- iOS安全区域支持：viewport-fit=cover 启用 safe-area-inset -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <!-- 防止iOS Safari自动缩放 -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Convai React 智能对话系统</title>
+    
+    <!-- DNS 预解析和预连接 -->
+    <link rel="dns-prefetch" href="https://fonts.googleapis.com">
+    <link rel="dns-prefetch" href="https://fonts.gstatic.com">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    
+    <!-- ✨ 新增：预加载 Unity 关键资源 -->
+    <link rel="preload" href="%PUBLIC_URL%/unity-build/Build/Bryant.loader.js" as="script">
+    <link rel="modulepreload" href="%PUBLIC_URL%/unity-build/Build/Bryant.framework.js">
+    
+    <!-- ✨ 新增：预加载字体 -->
+    <link rel="preload" 
+          href="%PUBLIC_URL%/unity-build/Build/UcC73FwrK3iLTeHuS_nVMrMxCp50Sjla1ZL7.woff2" 
+          as="font" 
+          type="font/woff2" 
+          crossorigin>
+    
+    <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- ✨ 可选：添加 meta 标签优化 -->
+    <meta name="description" content="基于 Convai 的智能对话系统">
+    <meta name="theme-color" content="#000000">
+    
+    <!-- ✨ 可选：添加资源提示 -->
+    <link rel="prefetch" href="%PUBLIC_URL%/unity-build/Build/Bryant.data.unityweb">
 </head>
 <body>
+    <noscript>您需要启用 JavaScript 才能运行此应用程序。</noscript>
     <div id="root"></div>
+    
+    <!-- ✨ 可选：添加加载提示 -->
+    <div id="loading-screen" style="
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100vh;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        color: white;
+        font-family: 'Inter', sans-serif;
+        z-index: 9999;
+    ">
+        <div style="text-align: center;">
+            <h2>正在加载...</h2>
+            <div style="
+                width: 200px;
+                height: 4px;
+                background: rgba(255,255,255,0.3);
+                border-radius: 2px;
+                overflow: hidden;
+                margin: 20px auto;
+            ">
+                <div style="
+                    width: 0%;
+                    height: 100%;
+                    background: white;
+                    animation: loading 2s ease-in-out infinite;
+                "></div>
+            </div>
+            <p style="opacity: 0.8; font-size: 14px;">请稍候，正在初始化系统...</p>
+        </div>
+    </div>
+    
+    <style>
+        @keyframes loading {
+            0% { width: 0%; }
+            50% { width: 70%; }
+            100% { width: 100%; }
+        }
+    </style>
+    
+    <script>
+        // React 加载后隐藏加载屏幕
+        window.addEventListener('load', function() {
+            setTimeout(function() {
+                const loadingScreen = document.getElementById('loading-screen');
+                if (loadingScreen) {
+                    loadingScreen.style.opacity = '0';
+                    loadingScreen.style.transition = 'opacity 0.5s';
+                    setTimeout(function() {
+                        loadingScreen.style.display = 'none';
+                    }, 500);
+                }
+            }, 1000);
+        });
+    </script>
 </body>
 </html>
-
